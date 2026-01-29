@@ -3,464 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Substack Fee Calculator | The Creator Shift</title>
-    <meta name="description" content="Berechne realistisch, wie viele zahlende Abonnent*innen du für dein Umsatzziel brauchst – oder was du mit deiner aktuellen Basis verdienen kannst.">
-    
-    <!-- Tailwind CSS CDN -->
+    <title>Substack Umsatz-Rechner</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React CDN -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background-color: #fafafa;
+            background-color: #f5f5f4;
+            min-height: 100vh;
+            padding: 2rem 1rem;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    
     <script type="text/babel">
-        const { useState, useEffect } = React;
+import React, { useState } from 'react';
 
-        function SubstackFeeCalculator() {
-            // Calculation mode
-            const [mode, setMode] = useState('revenueToSubs');
-            
-            // Basic inputs
-            const [targetRevenue, setTargetRevenue] = useState(1000);
-            const [monthlyPrice, setMonthlyPrice] = useState(5);
-            const [subscriberCount, setSubscriberCount] = useState(100);
-            
-            // Expert controls
-            const [showExpert, setShowExpert] = useState(false);
-            const [conversionRate, setConversionRate] = useState(3);
-            const [monthlyShare, setMonthlyShare] = useState(30);
-            const [yearlyShare, setYearlyShare] = useState(69);
-            const [foundingShare, setFoundingShare] = useState(1);
-            const [yearlyMultiplier, setYearlyMultiplier] = useState(10);
-            const [foundingMultiplier, setFoundingMultiplier] = useState(25);
-            
-            // Results
-            const [results, setResults] = useState(null);
+const SubstackCalculator = () => {
+  // Default values
+  const defaults = {
+    revenueTarget: 1000,
+    subscriberCount: 1000,
+    monthlyPrice: 5,
+    conversionRate: 3,
+    monthlyPercent: 30,
+    yearlyPercent: 69,
+    foundingPercent: 1,
+    yearlyMultiplier: 10,
+    foundingMultiplier: 25
+  };
 
-            // Default values for reset
-            const defaults = {
-                conversionRate: 3,
-                monthlyShare: 30,
-                yearlyShare: 69,
-                foundingShare: 1,
-                yearlyMultiplier: 10,
-                foundingMultiplier: 25
-            };
+  // State
+  const [mode, setMode] = useState('revenueToSubs');
+  const [revenueTarget, setRevenueTarget] = useState(defaults.revenueTarget);
+  const [subscriberCount, setSubscriberCount] = useState(defaults.subscriberCount);
+  const [monthlyPrice, setMonthlyPrice] = useState(defaults.monthlyPrice);
+  const [conversionRate, setConversionRate] = useState(defaults.conversionRate);
+  const [monthlyPercent, setMonthlyPercent] = useState(defaults.monthlyPercent);
+  const [yearlyPercent, setYearlyPercent] = useState(defaults.yearlyPercent);
+  const [foundingPercent, setFoundingPercent] = useState(defaults.foundingPercent);
+  const [yearlyMultiplier, setYearlyMultiplier] = useState(defaults.yearlyMultiplier);
+  const [foundingMultiplier, setFoundingMultiplier] = useState(defaults.foundingMultiplier);
+  const [showExpertSettings, setShowExpertSettings] = useState(false);
 
-            // Reset expert controls to defaults
-            const resetExpertControls = () => {
-                setConversionRate(defaults.conversionRate);
-                setMonthlyShare(defaults.monthlyShare);
-                setYearlyShare(defaults.yearlyShare);
-                setFoundingShare(defaults.foundingShare);
-                setYearlyMultiplier(defaults.yearlyMultiplier);
-                setFoundingMultiplier(defaults.foundingMultiplier);
-            };
+  // Input state for controlled inputs (to handle leading zeros)
+  const [inputValues, setInputValues] = useState({
+    revenueTarget: defaults.revenueTarget.toString(),
+    subscriberCount: defaults.subscriberCount.toString(),
+    monthlyPrice: defaults.monthlyPrice.toString(),
+    conversionRate: defaults.conversionRate.toString(),
+    monthlyPercent: defaults.monthlyPercent.toString(),
+    yearlyPercent: defaults.yearlyPercent.toString(),
+    foundingPercent: defaults.foundingPercent.toString(),
+    yearlyMultiplier: defaults.yearlyMultiplier.toString(),
+    foundingMultiplier: defaults.foundingMultiplier.toString()
+  });
 
-            // Check if percentages sum to 100
-            const percentageSum = monthlyShare + yearlyShare + foundingShare;
-            const percentageWarning = percentageSum !== 100;
+  // Handle input change - prevents leading zeros
+  const handleInputChange = (field, value, setter) => {
+    // Allow empty string for clearing
+    if (value === '') {
+      setInputValues(prev => ({ ...prev, [field]: '' }));
+      setter(0);
+      return;
+    }
+    
+    // Remove leading zeros (except for "0" itself or "0.")
+    let cleanValue = value.replace(/^0+(?=\d)/, '');
+    
+    // Parse the number
+    const numValue = parseFloat(cleanValue) || 0;
+    
+    setInputValues(prev => ({ ...prev, [field]: cleanValue }));
+    setter(numValue);
+  };
 
-            // Calculate weighted months per paid subscriber
-            const calculateWeightedMonths = () => {
-                const monthly = (monthlyShare / 100) * 12;
-                const yearly = (yearlyShare / 100) * yearlyMultiplier;
-                const founding = (foundingShare / 100) * foundingMultiplier;
-                return monthly + yearly + founding;
-            };
+  // Handle blur - restore default if empty
+  const handleInputBlur = (field, value, defaultValue) => {
+    if (value === '' || value === '0') {
+      setInputValues(prev => ({ ...prev, [field]: defaultValue.toString() }));
+    }
+  };
 
-            // Platform fees: 10% Substack + 3% Stripe = 13%
-            const platformFeeRate = 0.13;
+  // Reset function
+  const resetToDefaults = () => {
+    setRevenueTarget(defaults.revenueTarget);
+    setSubscriberCount(defaults.subscriberCount);
+    setMonthlyPrice(defaults.monthlyPrice);
+    setConversionRate(defaults.conversionRate);
+    setMonthlyPercent(defaults.monthlyPercent);
+    setYearlyPercent(defaults.yearlyPercent);
+    setFoundingPercent(defaults.foundingPercent);
+    setYearlyMultiplier(defaults.yearlyMultiplier);
+    setFoundingMultiplier(defaults.foundingMultiplier);
+    setInputValues({
+      revenueTarget: defaults.revenueTarget.toString(),
+      subscriberCount: defaults.subscriberCount.toString(),
+      monthlyPrice: defaults.monthlyPrice.toString(),
+      conversionRate: defaults.conversionRate.toString(),
+      monthlyPercent: defaults.monthlyPercent.toString(),
+      yearlyPercent: defaults.yearlyPercent.toString(),
+      foundingPercent: defaults.foundingPercent.toString(),
+      yearlyMultiplier: defaults.yearlyMultiplier.toString(),
+      foundingMultiplier: defaults.foundingMultiplier.toString()
+    });
+  };
 
-            useEffect(() => {
-                const weightedMonths = calculateWeightedMonths();
-                const revenuePerPaidSub = monthlyPrice * weightedMonths;
-                const netFactor = 1 - platformFeeRate;
+  // Calculated values
+  const yearlyPrice = monthlyPrice * yearlyMultiplier;
+  const foundingPrice = monthlyPrice * foundingMultiplier;
+  const platformFeeRate = 0.13; // 10% Substack + 3% Stripe
 
-                if (mode === 'revenueToSubs') {
-                    // From net revenue target to required subscribers
-                    const grossRevenue = targetRevenue / netFactor;
-                    const paidSubsNeeded = grossRevenue / revenuePerPaidSub;
-                    const totalSubsNeeded = paidSubsNeeded / (conversionRate / 100);
-                    const fees = grossRevenue - targetRevenue;
+  // Weighted average months per paid subscriber
+  const weightedMonths = 
+    (monthlyPercent / 100) * 12 + 
+    (yearlyPercent / 100) * yearlyMultiplier + 
+    (foundingPercent / 100) * foundingMultiplier;
 
-                    setResults({
-                        mode: 'revenueToSubs',
-                        targetNetRevenue: targetRevenue,
-                        grossRevenue: grossRevenue,
-                        fees: fees,
-                        paidSubscribers: Math.ceil(paidSubsNeeded),
-                        totalSubscribers: Math.ceil(totalSubsNeeded),
-                        revenuePerPaidSub: revenuePerPaidSub,
-                        weightedMonths: weightedMonths
-                    });
-                } else {
-                    // From subscriber count to projected revenue
-                    const paidSubs = subscriberCount * (conversionRate / 100);
-                    const grossRevenue = paidSubs * revenuePerPaidSub;
-                    const netRevenue = grossRevenue * netFactor;
-                    const fees = grossRevenue - netRevenue;
+  // Percentage validation
+  const percentageSum = monthlyPercent + yearlyPercent + foundingPercent;
+  const percentageValid = Math.abs(percentageSum - 100) < 0.01;
 
-                    setResults({
-                        mode: 'subsToRevenue',
-                        totalSubscribers: subscriberCount,
-                        paidSubscribers: Math.round(paidSubs),
-                        grossRevenue: grossRevenue,
-                        netRevenue: netRevenue,
-                        fees: fees,
-                        revenuePerPaidSub: revenuePerPaidSub,
-                        weightedMonths: weightedMonths
-                    });
-                }
-            }, [mode, targetRevenue, monthlyPrice, subscriberCount, conversionRate, 
-                monthlyShare, yearlyShare, foundingShare, yearlyMultiplier, foundingMultiplier]);
+  // Calculations for Mode 1: Revenue Target → Subscribers
+  const calculateFromRevenue = () => {
+    const grossRevenue = revenueTarget / (1 - platformFeeRate);
+    const revenuePerPaidSub = monthlyPrice * weightedMonths;
+    const paidSubsNeeded = grossRevenue / revenuePerPaidSub;
+    const totalSubsNeeded = paidSubsNeeded / (conversionRate / 100);
+    const fees = grossRevenue * platformFeeRate;
+    
+    return {
+      paidSubs: Math.ceil(paidSubsNeeded),
+      totalSubs: Math.ceil(totalSubsNeeded),
+      grossRevenue: grossRevenue,
+      fees: fees
+    };
+  };
 
-            const formatCurrency = (value) => {
-                return new Intl.NumberFormat('de-DE', { 
-                    style: 'currency', 
-                    currency: 'EUR',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                }).format(value);
-            };
+  // Calculations for Mode 2: Subscribers → Revenue
+  const calculateFromSubscribers = () => {
+    const paidSubs = subscriberCount * (conversionRate / 100);
+    const revenuePerPaidSub = monthlyPrice * weightedMonths;
+    const grossRevenue = paidSubs * revenuePerPaidSub;
+    const fees = grossRevenue * platformFeeRate;
+    const netRevenue = grossRevenue - fees;
+    
+    return {
+      paidSubs: Math.round(paidSubs),
+      netRevenue: netRevenue,
+      grossRevenue: grossRevenue,
+      fees: fees
+    };
+  };
 
-            const formatNumber = (value) => {
-                return new Intl.NumberFormat('de-DE').format(value);
-            };
+  const results = mode === 'revenueToSubs' ? calculateFromRevenue() : calculateFromSubscribers();
 
-            return (
-                <div className="max-w-2xl mx-auto p-6">
-                    <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                            Substack Fee Calculator
-                        </h1>
-                        <p className="text-gray-600 mb-6">
-                            Realistische Zahlen statt Wunschdenken: Was brauchst du wirklich für dein Umsatzziel?
-                        </p>
+  // Format currency
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
 
-                        {/* Mode Toggle */}
-                        <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-lg">
-                            <button
-                                onClick={() => setMode('revenueToSubs')}
-                                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                                    mode === 'revenueToSubs' 
-                                        ? 'bg-orange-500 text-white shadow' 
-                                        : 'text-gray-600 hover:bg-gray-200'
-                                }`}
-                            >
-                                Umsatzziel → Abos
-                            </button>
-                            <button
-                                onClick={() => setMode('subsToRevenue')}
-                                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
-                                    mode === 'subsToRevenue' 
-                                        ? 'bg-orange-500 text-white shadow' 
-                                        : 'text-gray-600 hover:bg-gray-200'
-                                }`}
-                            >
-                                Abos → Umsatz
-                            </button>
-                        </div>
+  // Format number
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('de-DE').format(value);
+  };
 
-                        {/* Basic Inputs */}
-                        <div className="space-y-4 mb-6">
-                            {mode === 'revenueToSubs' ? (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Netto-Umsatzziel pro Jahr (nach Gebühren)
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="number"
-                                            value={targetRevenue}
-                                            onChange={(e) => setTargetRevenue(Number(e.target.value))}
-                                            className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                            min="0"
-                                            step="100"
-                                        />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Anzahl Gesamt-Abonnent*innen (gratis + paid)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={subscriberCount}
-                                        onChange={(e) => setSubscriberCount(Number(e.target.value))}
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                        min="0"
-                                        step="100"
-                                    />
-                                </div>
-                            )}
+  // Tooltip component
+  const Tooltip = ({ text }) => (
+    <div className="group relative inline-block ml-1">
+      <span className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+      <div className="invisible group-hover:visible absolute z-10 w-64 p-2 mt-1 text-sm text-white bg-gray-800 rounded-lg shadow-lg -left-28 top-6">
+        {text}
+      </div>
+    </div>
+  );
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Monatlicher Abo-Preis
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        value={monthlyPrice}
-                                        onChange={(e) => setMonthlyPrice(Number(e.target.value))}
-                                        className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                        min="1"
-                                        step="1"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Jahresabo: {formatCurrency(monthlyPrice * yearlyMultiplier)} · 
-                                    Founding Member: {formatCurrency(monthlyPrice * foundingMultiplier)}
-                                </p>
-                            </div>
-                        </div>
+  return (
+    <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+      {/* Header with Reset Button */}
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Substack Umsatz-Rechner</h1>
+          <p className="text-gray-600 mt-1">
+            Schluss mit Pi mal Daumen! So viele Abos brauchst du für deinen Wunsch-Umsatz
+          </p>
+        </div>
+        <button
+          onClick={resetToDefaults}
+          className="text-sm text-orange-600 hover:text-orange-700 hover:underline whitespace-nowrap ml-4"
+        >
+          Zurücksetzen
+        </button>
+      </div>
 
-                        {/* Expert Controls Toggle */}
-                        <button
-                            onClick={() => setShowExpert(!showExpert)}
-                            className="flex items-center gap-2 text-sm text-gray-600 hover:text-orange-600 mb-4"
-                        >
-                            <span className={`transform transition-transform ${showExpert ? 'rotate-90' : ''}`}>
-                                ▶
-                            </span>
-                            Experten-Einstellungen
-                        </button>
+      {/* Mode Toggle */}
+      <div className="flex rounded-lg bg-gray-100 p-1 mt-4 mb-6">
+        <button
+          onClick={() => setMode('revenueToSubs')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            mode === 'revenueToSubs'
+              ? 'bg-orange-500 text-white shadow'
+              : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          Umsatz → Abos
+        </button>
+        <button
+          onClick={() => setMode('subsToRevenue')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            mode === 'subsToRevenue'
+              ? 'bg-orange-500 text-white shadow'
+              : 'text-gray-600 hover:text-gray-800'
+          }`}
+        >
+          Abos → Umsatz
+        </button>
+      </div>
 
-                        {/* Expert Controls */}
-                        {showExpert && (
-                            <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-4">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h3 className="text-sm font-medium text-gray-700">Parameter anpassen</h3>
-                                    <button
-                                        onClick={resetExpertControls}
-                                        className="text-xs px-3 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
-                                    >
-                                        Zurücksetzen
-                                    </button>
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm text-gray-600 mb-1">
-                                        Conversion Rate (Gratis → Paid): {conversionRate}%
-                                        <span className="ml-1 text-gray-400 cursor-help" title="Typisch: 1-5% bei neuen Substacks, bis 10% bei etablierten Nischen-Publikationen">ⓘ</span>
-                                    </label>
-                                    <input
-                                        type="range"
-                                        value={conversionRate}
-                                        onChange={(e) => setConversionRate(Number(e.target.value))}
-                                        className="w-full accent-orange-500"
-                                        min="1"
-                                        max="10"
-                                        step="0.5"
-                                    />
-                                    <div className="flex justify-between text-xs text-gray-400">
-                                        <span>1%</span>
-                                        <span>10%</span>
-                                    </div>
-                                </div>
+      {/* Input Section */}
+      <div className="space-y-4 mb-6">
+        {mode === 'revenueToSubs' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Wunsch-Umsatz pro Jahr
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={inputValues.revenueTarget}
+                onChange={(e) => handleInputChange('revenueTarget', e.target.value, setRevenueTarget)}
+                onBlur={() => handleInputBlur('revenueTarget', inputValues.revenueTarget, defaults.revenueTarget)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              />
+              <span className="absolute right-4 top-3 text-gray-500">€</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              nach Abzug der Gebühren für Substack und Stripe
+            </p>
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gesamtzahl Abos
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={inputValues.subscriberCount}
+              onChange={(e) => handleInputChange('subscriberCount', e.target.value, setSubscriberCount)}
+              onBlur={() => handleInputBlur('subscriberCount', inputValues.subscriberCount, defaults.subscriberCount)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            />
+          </div>
+        )}
 
-                                <div className="border-t border-gray-200 pt-4">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="block text-sm text-gray-600">
-                                            Abo-Verteilung
-                                            <span className="ml-1 text-gray-400 cursor-help" title="Wie verteilen sich deine zahlenden Abos auf die verschiedenen Laufzeiten?">ⓘ</span>
-                                        </label>
-                                        {percentageWarning && (
-                                            <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                                                Summe: {percentageSum}% (≠ 100%)
-                                            </span>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div>
-                                            <label className="block text-xs text-gray-500 mb-1">Monatlich</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    value={monthlyShare}
-                                                    onChange={(e) => setMonthlyShare(Number(e.target.value))}
-                                                    className="w-full p-2 pr-6 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                                    min="0"
-                                                    max="100"
-                                                />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 mb-1">Jährlich</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    value={yearlyShare}
-                                                    onChange={(e) => setYearlyShare(Number(e.target.value))}
-                                                    className="w-full p-2 pr-6 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                                    min="0"
-                                                    max="100"
-                                                />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 mb-1">Founding</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    value={foundingShare}
-                                                    onChange={(e) => setFoundingShare(Number(e.target.value))}
-                                                    className="w-full p-2 pr-6 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                                    min="0"
-                                                    max="100"
-                                                />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Preis Monats-Abo
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={inputValues.monthlyPrice}
+              onChange={(e) => handleInputChange('monthlyPrice', e.target.value, setMonthlyPrice)}
+              onBlur={() => handleInputBlur('monthlyPrice', inputValues.monthlyPrice, defaults.monthlyPrice)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            />
+            <span className="absolute right-4 top-3 text-gray-500">€</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Jahresabo: {formatCurrency(yearlyPrice)} · Founding Member: {formatCurrency(foundingPrice)}
+            <Tooltip text="Die Preise für Jahresabo und Founding Member werden aus dem Monats-Preis berechnet. Du kannst die Multiplikatoren in den Experten-Einstellungen anpassen." />
+          </p>
+        </div>
+      </div>
 
-                                <div className="border-t border-gray-200 pt-4">
-                                    <label className="block text-sm text-gray-600 mb-2">
-                                        Preis-Multiplikatoren (vs. Monatspreis)
-                                        <span className="ml-1 text-gray-400 cursor-help" title="Substack-Standard: Jahresabo = 10× Monatspreis, Founding = 25× Monatspreis">ⓘ</span>
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-xs text-gray-500 mb-1">Jahresabo</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    value={yearlyMultiplier}
-                                                    onChange={(e) => setYearlyMultiplier(Number(e.target.value))}
-                                                    className="w-full p-2 pr-6 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                                    min="1"
-                                                    max="12"
-                                                />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">×</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 mb-1">Founding Member</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    value={foundingMultiplier}
-                                                    onChange={(e) => setFoundingMultiplier(Number(e.target.value))}
-                                                    className="w-full p-2 pr-6 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                                    min="1"
-                                                    max="50"
-                                                />
-                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">×</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+      {/* Expert Settings */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowExpertSettings(!showExpertSettings)}
+          className="flex items-center text-sm text-gray-600 hover:text-gray-800"
+        >
+          <span className="mr-1">{showExpertSettings ? '▼' : '▶'}</span>
+          Experten-Einstellungen
+        </button>
+        
+        {showExpertSettings && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Conversion Rate (%)
+                <Tooltip text="Prozentsatz deiner Gesamt-Abonnent*innen, die zu zahlenden Abonnent*innen werden. 3% ist ein üblicher Wert." />
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={inputValues.conversionRate}
+                onChange={(e) => handleInputChange('conversionRate', e.target.value, setConversionRate)}
+                onBlur={() => handleInputBlur('conversionRate', inputValues.conversionRate, defaults.conversionRate)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              />
+            </div>
 
-                        {/* Results */}
-                        {results && (
-                            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-6">
-                                <h2 className="text-lg font-semibold text-gray-800 mb-4">Ergebnis</h2>
-                                
-                                {results.mode === 'revenueToSubs' ? (
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Benötigte Paid-Abos</span>
-                                            <span className="text-2xl font-bold text-orange-600">
-                                                {formatNumber(results.paidSubscribers)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Benötigte Gesamt-Abos</span>
-                                            <span className="text-xl font-semibold text-gray-800">
-                                                {formatNumber(results.totalSubscribers)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Brutto-Umsatz</span>
-                                            <span className="text-gray-800">{formatCurrency(results.grossRevenue)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2">
-                                            <span className="text-gray-600">Plattform-Gebühren (13%)</span>
-                                            <span className="text-red-600">−{formatCurrency(results.fees)}</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Netto-Umsatz pro Jahr</span>
-                                            <span className="text-2xl font-bold text-orange-600">
-                                                {formatCurrency(results.netRevenue)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Erwartete Paid-Abos</span>
-                                            <span className="text-xl font-semibold text-gray-800">
-                                                {formatNumber(results.paidSubscribers)}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2 border-b border-orange-200">
-                                            <span className="text-gray-600">Brutto-Umsatz</span>
-                                            <span className="text-gray-800">{formatCurrency(results.grossRevenue)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2">
-                                            <span className="text-gray-600">Plattform-Gebühren (13%)</span>
-                                            <span className="text-red-600">−{formatCurrency(results.fees)}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="mt-4 pt-4 border-t border-orange-200">
-                                    <p className="text-xs text-gray-500">
-                                        Berechnung basiert auf: {conversionRate}% Conversion Rate · 
-                                        {results.weightedMonths.toFixed(2)} gewichtete Monate pro Paid-Abo · 
-                                        {formatCurrency(results.revenuePerPaidSub)} Umsatz pro Paid-Abo/Jahr
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="text-center text-sm text-gray-500">
-                        <p>
-                            Ein Tool von{' '}
-                            <a 
-                                href="https://thcrtrshft.substack.com" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-orange-600 hover:underline"
-                            >
-                                The Creator Shift
-                            </a>
-                        </p>
-                        <p className="mt-1">
-                            Gebührenstruktur: 10% Substack + 3% Stripe = 13% gesamt
-                        </p>
-                    </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Preismultiplikatoren
+                <Tooltip text="Wie viel mal den Preis eines Monats-Abos kostet ein Jahres- und ein Founding Member-Abo?" />
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-500">Jahresabo</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={inputValues.yearlyMultiplier}
+                      onChange={(e) => handleInputChange('yearlyMultiplier', e.target.value, setYearlyMultiplier)}
+                      onBlur={() => handleInputBlur('yearlyMultiplier', inputValues.yearlyMultiplier, defaults.yearlyMultiplier)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <span className="absolute right-4 top-2 text-gray-500">×</span>
+                  </div>
                 </div>
-            );
-        }
+                <div>
+                  <span className="text-xs text-gray-500">Founding Member</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={inputValues.foundingMultiplier}
+                      onChange={(e) => handleInputChange('foundingMultiplier', e.target.value, setFoundingMultiplier)}
+                      onBlur={() => handleInputBlur('foundingMultiplier', inputValues.foundingMultiplier, defaults.foundingMultiplier)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <span className="absolute right-4 top-2 text-gray-500">×</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<SubstackFeeCalculator />);
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Verteilung der Abo-Typen (%)
+                <Tooltip text="Wie verteilen sich deine zahlenden Abonnent*innen auf die verschiedenen Abo-Typen? Branchen-Durchschnitt: 30% Monats-, 69% Jahres-, 1% Founding Member-Abos." />
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <span className="text-xs text-gray-500">Monats-Abo</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={inputValues.monthlyPercent}
+                    onChange={(e) => handleInputChange('monthlyPercent', e.target.value, setMonthlyPercent)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-gray-500">Jahres-Abo</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={inputValues.yearlyPercent}
+                    onChange={(e) => handleInputChange('yearlyPercent', e.target.value, setYearlyPercent)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-gray-500">Founding</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={inputValues.foundingPercent}
+                    onChange={(e) => handleInputChange('foundingPercent', e.target.value, setFoundingPercent)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  />
+                </div>
+              </div>
+              {!percentageValid && (
+                <p className="text-sm text-red-500 mt-2">
+                  ⚠️ Die Summe der Prozente beträgt {percentageSum.toFixed(0)}% (sollte 100% sein)
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Results */}
+      <div className="bg-orange-50 rounded-lg p-4">
+        <h2 className="text-lg font-semibold text-gray-800 mb-3">Ergebnis</h2>
+        
+        {mode === 'revenueToSubs' ? (
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Benötigte Abos (Paid)</span>
+              <span className="font-semibold">{formatNumber(results.paidSubs)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Benötigte Abos (Gesamt)</span>
+              <span className="font-semibold">{formatNumber(results.totalSubs)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Erlöse aus Abos</span>
+              <span className="font-semibold">{formatCurrency(results.grossRevenue)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-gray-600">
+                Gebühren (13%)
+                <Tooltip text="Substack behält 10% der Einnahmen. Stripe (Zahlungsabwicklung) berechnet ca. 3%." />
+              </span>
+              <span className="font-semibold text-red-600">-{formatCurrency(results.fees)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Erwartete Paid-Abos</span>
+              <span className="font-semibold">{formatNumber(results.paidSubs)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Gesamt-Umsatz</span>
+              <span className="font-semibold">{formatCurrency(results.grossRevenue)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">
+                Gebühren (13%)
+                <Tooltip text="Substack behält 10% der Einnahmen. Stripe (Zahlungsabwicklung) berechnet ca. 3%." />
+              </span>
+              <span className="font-semibold text-red-600">-{formatCurrency(results.fees)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <span className="text-gray-600 font-medium">Erlös pro Jahr</span>
+              <span className="font-bold text-green-600">{formatCurrency(results.netRevenue)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Credit */}
+      <p className="text-center text-xs text-gray-400 mt-4">
+        Ein Tool von{' '}
+        <a href="https://thcrtrshft.substack.com" className="underline hover:text-orange-500">
+          The Creator Shift
+        </a>
+      </p>
+    </div>
+  );
+};
+
+export default SubstackCalculator;
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<SubstackCalculator />);
     </script>
 </body>
 </html>
