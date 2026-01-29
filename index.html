@@ -19,7 +19,7 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-import React, { useState } from 'react';
+const { useState } = React;
 
 const SubstackCalculator = () => {
   // Default values
@@ -293,7 +293,7 @@ const SubstackCalculator = () => {
           onClick={() => setShowExpertSettings(!showExpertSettings)}
           className="flex items-center text-sm text-gray-600 hover:text-gray-800"
         >
-          <span className="mr-1">{showExpertSettings ? '▼' : '▶'}</span>
+          <span className="mr-1 text-xs">{showExpertSettings ? '▾' : '▸'}</span>
           Experten-Einstellungen
         </button>
         
@@ -459,8 +459,6 @@ const SubstackCalculator = () => {
     </div>
   );
 };
-
-export default SubstackCalculator;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<SubstackCalculator />);
